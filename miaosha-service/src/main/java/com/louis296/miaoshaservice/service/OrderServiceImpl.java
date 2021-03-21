@@ -19,6 +19,8 @@ public class OrderServiceImpl implements OrderService{
     @Autowired
     private StockOrderMapper orderMapper;
 
+
+
     @Override
     public int createOptimisticOrder(int sid) throws Exception {
         //校验库存
@@ -34,7 +36,7 @@ public class OrderServiceImpl implements OrderService{
         LOGGER.info("查询数据库，尝试更新库存");
         int count = stockService.updateStockByOptimistic(stock);
         if (count == 0){
-            throw new RuntimeException("并发更新库存失败，version不匹配") ;
+            throw new RuntimeException("并发更新库存失败，version不匹配");
         }
     }
 

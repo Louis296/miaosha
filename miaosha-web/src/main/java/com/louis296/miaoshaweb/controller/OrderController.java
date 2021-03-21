@@ -23,8 +23,21 @@ public class OrderController {
         LOGGER.info("购买物品编号sid=[{}]", sid);
         int id = 0;
         try {
-            id = orderService.createOptimisticOrder(sid);
+            id = orderService.createWrongOrder(sid);
             LOGGER.info("创建订单id: [{}]", id);
+        } catch (Exception e) {
+            LOGGER.error("Exception", e);
+        }
+        return String.valueOf(id);
+    }
+
+    @RequestMapping("/createOptimisticOrder/{sid}")
+    @ResponseBody
+    public String createOptimisticOrder(@PathVariable int sid) {
+        int id;
+        try {
+            id = orderService.createOptimisticOrder(sid);
+            LOGGER.info("购买成功，剩余库存为: [{}]", id);
         } catch (Exception e) {
             LOGGER.error("购买失败：[{}]", e.getMessage());
             return "购买失败，库存不足";
