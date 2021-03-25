@@ -2,10 +2,14 @@ package com.louis296.miaoshaservice.service;
 
 import com.louis296.miaoshadao.dao.Stock;
 import com.louis296.miaoshadao.dao.StockOrder;
+import com.louis296.miaoshadao.dao.User;
 import com.louis296.miaoshadao.mapper.StockOrderMapper;
+import com.louis296.miaoshadao.mapper.UserMapper;
+import com.louis296.miaoshadao.utils.CacheKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -19,7 +23,11 @@ public class OrderServiceImpl implements OrderService{
     @Autowired
     private StockOrderMapper orderMapper;
 
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
 
+    @Autowired
+    private UserMapper userMapper;
 
     @Override
     public int createOptimisticOrder(int sid) throws Exception {
@@ -51,6 +59,38 @@ public class OrderServiceImpl implements OrderService{
         return id;
     }
 
+    @Override
+    public int createVerifiedOrder(Integer sid, Integer userId, String verifyHash) throws Exception {
+        LOGGER.info("验证是否在抢购时间内");
+
+        String hashKey= CacheKey.HASH_KEY.getKey()+"_"+sid+"_"+userId;
+        String verifyHashInRedis=stringRedisTemplate.opsForValue().get(hashKey);
+        if(!verifyHashInRedis.equals(verifyHash)){
+            throw new Exception("hash值与Redis中存储的不匹配");
+        }
+        LOGGER.info("验证hash值成功");
+
+        User user=userMapper.selectByPrimaryKey(userId.longValue());
+        if (user==null){
+            throw new Exception("用户不存在");
+        }
+        LOGGER.info("用户信息验证成功:[{}]",user.toString());
+
+        Stock stock=stockService.getStockById(sid);
+        if (stock==null){
+            throw new Exception("商品不存在");
+        }
+        LOGGER.info("商品信息验证成功:[{}]",stock.toString());
+
+        saleStockOptimistic(stock);
+        LOGGER.info("乐观锁更新库存成功");
+
+        createOrderWithUserInfoInDB(stock,userId);
+        LOGGER.info("创建订单成功");
+
+        return stock.getCount()-stock.getSale()-1;
+    }
+
     private Stock checkStock(int sid) {
         Stock stock = stockService.getStockById(sid);
         if (stock.getSale().equals(stock.getCount())) {
@@ -70,5 +110,13 @@ public class OrderServiceImpl implements OrderService{
         order.setName(stock.getName());
         int id = orderMapper.insertSelective(order);
         return id;
+    }
+
+    private int createOrderWithUserInfoInDB(Stock stock,Integer uid){
+        StockOrder order=new StockOrder();
+        order.setSid(stock.getId());
+        order.setName(stock.getName());
+        order.setUserId(uid);
+        return orderMapper.insertSelective(order);
     }
 }

@@ -9,6 +9,7 @@ public class StockOrder {
   private Integer id;
   private Integer sid;
   private String name;
+  private Integer userId;
   private Date createTime;
 
 
@@ -47,4 +48,11 @@ public class StockOrder {
     this.createTime = createTime;
   }
 
+  public Integer getUserId() {
+    return userId;
+  }
+
+  public void setUserId(Integer userId) {
+    this.userId = userId;
+  }
 }
