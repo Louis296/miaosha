@@ -20,6 +20,14 @@
         where id=#{id,jdbcType=INTEGER}
     </select>
 
+    <select id="selectByPrimaryKeyForUpdate" resultMap="BaseResultMap" parameterType="java.lang.Integer">
+        select
+        <include refid="Base_Column_List"/>
+        from stock
+        where id=#{id,jdbcType=INTEGER}
+        for update
+    </select>
+
     <update id="updateByPrimaryKeySelective" parameterType="com.louis296.miaoshadao.dao.Stock" >
         update stock
         <set >

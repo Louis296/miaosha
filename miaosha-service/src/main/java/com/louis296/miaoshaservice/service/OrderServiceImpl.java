@@ -11,6 +11,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class OrderServiceImpl implements OrderService{
@@ -38,6 +40,15 @@ public class OrderServiceImpl implements OrderService{
         //创建订单
         int id = createOrder(stock);
         return stock.getCount() - (stock.getSale()+1);
+    }
+
+    @Transactional(rollbackFor = Exception.class,propagation = Propagation.REQUIRED)
+    @Override
+    public int createPessimisticOrder(int sid) {
+        Stock stock=checkStockForUpdate(sid);
+        saleStock(stock);
+        createOrder(stock);
+        return stock.getCount()-stock.getSale()-1;
     }
 
     private void saleStockOptimistic(Stock stock) {
@@ -118,5 +129,13 @@ public class OrderServiceImpl implements OrderService{
         order.setName(stock.getName());
         order.setUserId(uid);
         return orderMapper.insertSelective(order);
+    }
+
+    private Stock checkStockForUpdate(int sid){
+        Stock stock=stockService.getStockByIdForUpdate(sid);
+        if(stock.getSale().equals(stock.getCount())){
+            throw new RuntimeException("库存不足");
+        }
+        return stock;
     }
 }

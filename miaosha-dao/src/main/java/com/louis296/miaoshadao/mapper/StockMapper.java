@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Mapper;
 public interface StockMapper {
 
     Stock selectByPrimaryKey(int id);
+    Stock selectByPrimaryKeyForUpdate(int id);
     int updateByOptimistic(Stock stock);
     int updateByPrimaryKeySelective(Stock stock);
 
