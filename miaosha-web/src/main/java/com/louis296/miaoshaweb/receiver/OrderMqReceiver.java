@@ -29,7 +29,13 @@ public class OrderMqReceiver {
 
         JSONObject jsonObject=JSONObject.parseObject(message);
         try{
-            orderService.createOrderByMq(jsonObject.getInteger("sid"),jsonObject.getInteger("userId"));
+            if (jsonObject.getString("verifyHash")!=null){
+                orderService.createOrderByMqWithVerified(jsonObject.getInteger("sid"),
+                        jsonObject.getInteger("userId"),jsonObject.getString("verifyHash"));
+            }else{
+                orderService.createOrderByMq(jsonObject.getInteger("sid"),jsonObject.getInteger("userId"));
+            }
+            stockService.delStockCountCache(jsonObject.getInteger("sid"));
         }catch (Exception e){
             LOGGER.error("消息处理异常：{}",e.getMessage());
         }

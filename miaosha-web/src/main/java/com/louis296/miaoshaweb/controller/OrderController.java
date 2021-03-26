@@ -37,6 +37,50 @@ public class OrderController {
 
     RateLimiter rateLimiter=RateLimiter.create(10);
 
+    /**
+     * 乐观锁＋令牌桶＋接口隐藏＋购买检测＋数据缓存＋异步订单处理
+     * @param sid
+     * @param userId
+     * @param verifyHash
+     * @return
+     */
+    @RequestMapping(value = "createOrder",method = {RequestMethod.GET})
+    @ResponseBody
+    public String createOrder(@RequestParam(value = "sid") Integer sid,
+                              @RequestParam(value = "uid") Integer userId,
+                              @RequestParam(value = "verifyHash") String verifyHash){
+        LOGGER.info("使用限塞式令牌桶限流");
+        LOGGER.info("等待时间"+rateLimiter.acquire());
+        try{
+
+//            Boolean hasOrder=orderService.checkUserOrderInfoInCache(sid,userId);
+//            if (hasOrder!=null&&hasOrder){
+//                LOGGER.info("该用户已抢购过");
+//                return "你已经抢购过了";
+//            }
+
+            LOGGER.info("没有抢购过，检查缓存中商品是否还有库存");
+            Integer count=stockService.getStockCount(sid);
+            if (count==0){
+                return "抢购失败，库存不足";
+            }
+
+            LOGGER.info("商品库存为[{}]",count);
+            JSONObject jsonObject=new JSONObject();
+            jsonObject.put("sid",sid);
+            jsonObject.put("userId",userId);
+            jsonObject.put("verifyHash",verifyHash);
+            sendToOrderQueue(jsonObject.toJSONString());
+
+            sendToDelCache(String.valueOf(sid));
+            return "抢购请求提交成功！";
+        }catch (Exception e){
+            LOGGER.error("异步下单接口异常，原因：[{}]",e.getMessage());
+            return "抢购请求失败，服务器忙";
+        }
+    }
+
+
     @RequestMapping("/createWrongOrder/{sid}")
     @ResponseBody
     public String createWrongOrder(@PathVariable int sid) {

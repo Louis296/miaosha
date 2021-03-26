@@ -9,6 +9,7 @@ public interface OrderService {
     int createWrongOrder(int sid);
     int createVerifiedOrder(Integer sid,Integer userId,String verifyHash) throws Exception;
     void createOrderByMq(Integer sid,Integer userID) throws Exception;
+    void createOrderByMqWithVerified(Integer sid,Integer userId,String verifyHash) throws Exception;
     Boolean checkUserOrderInfoInCache(Integer sid,Integer userId) throws Exception;
 
 }

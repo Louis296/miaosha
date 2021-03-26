@@ -127,6 +127,33 @@ public class OrderServiceImpl implements OrderService{
     }
 
     @Override
+    public void createOrderByMqWithVerified(Integer sid, Integer userId, String verifyHash) throws Exception {
+        LOGGER.info("验证是否在抢购时间内");
+
+        String hashKey=CacheKey.HASH_KEY.getKey()+"_"+sid+"_"+userId;
+        String verifyHashInRedis=stringRedisTemplate.opsForValue().get(hashKey);
+        if (!verifyHashInRedis.equals(verifyHash)){
+            throw new Exception("hash值与redis中不匹配");
+        }
+        LOGGER.info("验证hash值成功");
+
+        User user=userMapper.selectByPrimaryKey(userId.longValue());
+        if (user==null){
+            throw new Exception("用户不存在");
+        }
+        LOGGER.info("用户信息验证成功：[{}]",user.toString());
+
+        Stock stock=checkStock(sid);
+
+        saleStockOptimistic(stock);
+        LOGGER.info("乐观锁更新库存成功");
+
+        createOrderWithUserInfoInDB(stock,userId);
+        LOGGER.info("修改数据库成功");
+
+    }
+
+    @Override
     public Boolean checkUserOrderInfoInCache(Integer sid, Integer userId) throws Exception {
         String key=CacheKey.USER_HAS_ORDER.getKey()+"_"+sid;
         LOGGER.info("检查用户Id:[{}]是否抢购过商品Id:[{}]，检查的key为:[{}]",userId,sid,key);
