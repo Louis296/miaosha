@@ -102,6 +102,37 @@ public class OrderServiceImpl implements OrderService{
         return stock.getCount()-stock.getSale()-1;
     }
 
+    @Override
+    public void createOrderByMq(Integer sid, Integer userId) throws Exception {
+        Stock stock;
+        try{
+            stock=checkStock(sid);
+        }catch (Exception e){
+            LOGGER.info("库存不足！");
+            return;
+        }
+
+        saleStockOptimistic(stock);
+
+        LOGGER.info("扣减库存成功，剩余库存：[{}]",stock.getCount()-stock.getSale()-1);
+        stockService.delStockCountCache(sid);
+        LOGGER.info("删除库存缓存");
+
+        LOGGER.info("写入订单至数据库");
+        createOrderWithUserInfoInDB(stock,userId);
+        LOGGER.info("写入订单至缓存");
+        createOrderWithUserInfoInCache(stock,userId);
+        LOGGER.info("下单完成");
+
+    }
+
+    @Override
+    public Boolean checkUserOrderInfoInCache(Integer sid, Integer userId) throws Exception {
+        String key=CacheKey.USER_HAS_ORDER.getKey()+"_"+sid;
+        LOGGER.info("检查用户Id:[{}]是否抢购过商品Id:[{}]，检查的key为:[{}]",userId,sid,key);
+        return stringRedisTemplate.opsForSet().isMember(key,userId.toString());
+    }
+
     private Stock checkStock(int sid) {
         Stock stock = stockService.getStockById(sid);
         if (stock.getSale().equals(stock.getCount())) {
@@ -137,5 +168,11 @@ public class OrderServiceImpl implements OrderService{
             throw new RuntimeException("库存不足");
         }
         return stock;
+    }
+
+    private Long createOrderWithUserInfoInCache(Stock stock,Integer userId){
+        String key=CacheKey.USER_HAS_ORDER.getKey()+"_"+stock.getId().toString();
+        LOGGER.info("写入用户订单数据SET:[{}][{}]",key,userId.toString());
+        return stringRedisTemplate.opsForSet().add(key,userId.toString());
     }
 }

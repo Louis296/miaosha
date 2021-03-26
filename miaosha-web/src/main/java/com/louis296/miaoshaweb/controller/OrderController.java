@@ -1,5 +1,6 @@
 package com.louis296.miaoshaweb.controller;
 
+import com.alibaba.fastjson.JSONObject;
 import com.google.common.util.concurrent.RateLimiter;
 import com.louis296.miaoshaservice.service.OrderService;
 import com.louis296.miaoshaservice.service.StockService;
@@ -239,5 +240,45 @@ public class OrderController {
     public void sendToDelCache(String message){
         LOGGER.info("通知消息队列开始重试删除缓存：[{}]",message);
         this.rabbitTemplate.convertAndSend("delCache",message);
+    }
+
+
+    /**
+     * 基于消息队列的异步订单处理
+     * @param sid
+     * @param userId
+     * @return
+     */
+    @RequestMapping(value = "/createUserOrderWithMq",method = {RequestMethod.GET})
+    @ResponseBody
+    public String createUserOrderWithMq(@RequestParam(value = "sid") Integer sid,
+                                        @RequestParam(value = "userId") Integer userId){
+        try{
+//            Boolean hasOrder=orderService.checkUserOrderInfoInCache(sid,userId);
+//            if (hasOrder!=null&&hasOrder){
+//                LOGGER.info("该用户已抢购过");
+//                return "你已经抢购过了";
+//            }
+//            LOGGER.info("没有抢购过，检查缓存中商品是否还有库存");
+            Integer count=stockService.getStockCount(sid);
+            if (count==0){
+                return "抢购失败，库存不足";
+            }
+
+            LOGGER.info("商品库存为[{}]",count);
+            JSONObject jsonObject=new JSONObject();
+            jsonObject.put("sid",sid);
+            jsonObject.put("userId",userId);
+            sendToOrderQueue(jsonObject.toJSONString());
+            return "抢购请求提交成功！";
+        }catch (Exception e){
+            LOGGER.error("异步订单下单接口出现异常：",e);
+            return "抢购请求失败，服务器忙";
+        }
+    }
+
+    public void sendToOrderQueue(String message){
+        LOGGER.info("通知消息队列开始下单：[{}]",message);
+        this.rabbitTemplate.convertAndSend("orderQueue",message);
     }
 }

@@ -12,4 +12,9 @@ public class RabbitMqConfig {
     public Queue delCacheQueue(){
         return new Queue("delCache");
     }
+
+    @Bean
+    public Queue orderQueue(){
+        return new Queue("orderQueue");
+    }
 }
